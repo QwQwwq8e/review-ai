@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI ตอบรีวิว</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&family=Kanit:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0f;
+    --surface: #16161a;
+    --card: #1e1e24;
+    --border: #2a2a35;
+    --accent: #f0b429;
+    --accent2: #ff6b35;
+    --text: #f0ede8;
+    --muted: #888898;
+    --positive: #4ade80;
+    --negative: #f87171;
+    --neutral: #60a5fa;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Sarabun', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px 80px;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(240,180,41,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(240,180,41,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 760px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .header {
+    text-align: center;
+    margin-bottom: 48px;
+    animation: fadeDown 0.7s ease both;
+  }
+
+  .badge {
+    display: inline-block;
+    background: rgba(240,180,41,0.12);
+    border: 1px solid rgba(240,180,41,0.3);
+    color: var(--accent);
+    font-family: 'Kanit', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    padding: 5px 14px;
+    border-radius: 20px;
+    margin-bottom: 20px;
+    text-transform: uppercase;
+  }
+
+  h1 {
+    font-family: 'Kanit', sans-serif;
+    font-size: clamp(28px, 5vw, 44px);
+    font-weight: 700;
+    line-height: 1.15;
+    margin-bottom: 12px;
+  }
+
+  h1 span {
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .subtitle { color: var(--muted); font-size: 16px; line-height: 1.6; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 32px;
+    margin-bottom: 24px;
+    animation: fadeUp 0.6s ease both;
+  }
+
+  .section-label {
+    font-family: 'Kanit', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .shop-row { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+  .shop-input-wrap { flex: 1; min-width: 200px; }
+
+  input[type="text"] {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: 'Sarabun', sans-serif;
+    font-size: 15px;
+    padding: 12px 16px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  input[type="text"]:focus { border-color: var(--accent); }
+  input[type="text"]::placeholder { color: var(--muted); }
+
+  .tone-group { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+
+  .tone-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--muted);
+    font-family: 'Sarabun', sans-serif;
+    font-size: 13px;
+    padding: 7px 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .tone-btn:hover { border-color: var(--accent); color: var(--text); }
+  .tone-btn.active {
+    background: rgba(240,180,41,0.12);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  textarea {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text);
+    font-family: 'Sarabun', sans-serif;
+    font-size: 15px;
+    line-height: 1.7;
+    padding: 16px;
+    resize: vertical;
+    min-height: 120px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  textarea:focus { border-color: var(--accent); }
+  textarea::placeholder { color: var(--muted); }
+
+  .sentiment-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+    min-height: 28px;
+  }
+
+  .sentiment-tag {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 20px;
+    display: none;
+  }
+
+  .sentiment-tag.positive { background: rgba(74,222,128,0.15); color: var(--positive); display: inline-block; }
+  .sentiment-tag.negative { background: rgba(248,113,113,0.15); color: var(--negative); display: inline-block; }
+  .sentiment-tag.neutral  { background: rgba(96,165,250,0.15);  color: var(--neutral);  display: inline-block; }
+
+  .btn-generate {
+    width: 100%;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: 12px;
+    color: #0d0d0f;
+    font-family: 'Kanit', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    padding: 16px;
+    cursor: pointer;
+    margin-top: 20px;
+    transition: opacity 0.2s, transform 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .btn-generate:hover:not(:disabled) { opacity: 0.92; transform: translateY(-1px); }
+  .btn-generate:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .spinner {
+    width: 18px; height: 18px;
+    border: 2px solid rgba(0,0,0,0.3);
+    border-top-color: #000;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: none;
+  }
+
+  .output-card { display: none; animation: fadeUp 0.5s ease both; }
+
+  .output-text {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    font-size: 15px;
+    line-height: 1.8;
+    white-space: pre-wrap;
+    min-height: 80px;
+  }
+
+  .streaming-cursor {
+    display: inline-block;
+    width: 2px; height: 1em;
+    background: var(--accent);
+    margin-left: 2px;
+    vertical-align: text-bottom;
+    animation: blink 0.8s step-end infinite;
+  }
+
+  .action-row { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+
+  .btn-copy, .btn-regen {
+    border-radius: 8px;
+    font-family: 'Sarabun', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 10px 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .btn-copy {
+    background: rgba(240,180,41,0.12);
+    border: 1px solid rgba(240,180,41,0.3);
+    color: var(--accent);
+  }
+
+  .btn-copy:hover { background: rgba(240,180,41,0.2); }
+
+  .btn-regen {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+
+  .btn-regen:hover { color: var(--text); border-color: var(--muted); }
+
+  .examples { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+
+  .example-chip {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--muted);
+    font-size: 12px;
+    padding: 6px 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .example-chip:hover { border-color: var(--accent); color: var(--text); }
+
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 32px;
+    animation: fadeUp 0.6s ease 0.3s both;
+  }
+
+  .stat-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+  }
+
+  .stat-num { font-family: 'Kanit', sans-serif; font-size: 24px; font-weight: 700; color: var(--accent); }
+  .stat-label { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  .error-box {
+    background: rgba(248,113,113,0.1);
+    border: 1px solid rgba(248,113,113,0.3);
+    border-radius: 10px;
+    padding: 14px 16px;
+    color: var(--negative);
+    font-size: 14px;
+  }
+
+  @keyframes fadeDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes fadeUp   { from { opacity: 0; transform: translateY(20px);  } to { opacity: 1; transform: translateY(0); } }
+  @keyframes spin     { to { transform: rotate(360deg); } }
+  @keyframes blink    { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <div class="badge">🤖 Powered by Claude AI</div>
+    <h1>AI ตอบ<span>รีวิว</span>ลูกค้า</h1>
+    <p class="subtitle">วางรีวิวลูกค้า → ได้คำตอบสุภาพ พร้อมใช้ ใน 3 วินาที</p>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-box">
+      <div class="stat-num" id="countGenerated">0</div>
+      <div class="stat-label">ตอบแล้ว</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-num">3s</div>
+      <div class="stat-label">เฉลี่ยต่อรีวิว</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-num">4</div>
+      <div class="stat-label">สไตล์การตอบ</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-label">ตั้งค่าร้านค้า</div>
+    <div class="shop-row">
+      <div class="shop-input-wrap">
+        <input type="text" id="shopName" placeholder="ชื่อร้าน เช่น ร้านกาแฟสุขใจ" />
+      </div>
+      <div class="shop-input-wrap">
+        <input type="text" id="shopType" placeholder="ประเภทร้าน เช่น ร้านอาหาร, แฟชั่น" />
+      </div>
+    </div>
+
+    <div class="section-label">สไตล์การตอบ</div>
+    <div class="tone-group">
+      <button class="tone-btn active" data-tone="สุภาพและเป็นมิตร">😊 สุภาพ/เป็นมิตร</button>
+      <button class="tone-btn" data-tone="เป็นทางการและมืออาชีพ">👔 มืออาชีพ</button>
+      <button class="tone-btn" data-tone="น่ารักและสนุกสนาน">🎀 น่ารัก/คิวต์</button>
+      <button class="tone-btn" data-tone="กระชับและตรงประเด็น">⚡ กระชับ</button>
+    </div>
+
+    <div class="section-label">รีวิวลูกค้า</div>
+    <textarea id="reviewInput" placeholder="วางรีวิวลูกค้าที่นี่..."></textarea>
+
+    <div class="sentiment-row">
+      <span style="font-size:12px; color:var(--muted)">อารมณ์รีวิว:</span>
+      <span class="sentiment-tag" id="sentimentTag"></span>
+    </div>
+
+    <div style="margin-top:14px">
+      <div style="font-size:12px; color:var(--muted); margin-bottom:8px">ตัวอย่างรีวิว:</div>
+      <div class="examples">
+        <span class="example-chip" onclick="setExample(this)">ของมาช้ามาก รอตั้ง 2 อาทิตย์</span>
+        <span class="example-chip" onclick="setExample(this)">สินค้าดีมากเลยค่ะ จะกลับมาซื้ออีก</span>
+        <span class="example-chip" onclick="setExample(this)">แพ็คของไม่ดี สินค้าแตก ผิดหวังมาก</span>
+        <span class="example-chip" onclick="setExample(this)">ปกติดีนะ แต่ครั้งนี้ได้ของผิดไซส์</span>
+      </div>
+    </div>
+
+    <button class="btn-generate" id="generateBtn" onclick="generate()">
+      <div class="spinner" id="spinner"></div>
+      <span id="btnText">✨ สร้างคำตอบ</span>
+    </button>
+  </div>
+
+  <div class="card output-card" id="outputCard">
+    <div class="section-label">คำตอบที่แนะนำ</div>
+    <div id="outputArea"></div>
+    <div class="action-row">
+      <button class="btn-copy" onclick="copyText()">📋 คัดลอก</button>
+      <button class="btn-regen" onclick="generate()">🔄 สร้างใหม่</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  let selectedTone = 'สุภาพและเป็นมิตร';
+  let lastOutput = '';
+  let generateCount = parseInt(localStorage.getItem('reviewCount') || '0');
+  document.getElementById('countGenerated').textContent = generateCount;
+
+  document.querySelectorAll('.tone-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tone-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedTone = btn.dataset.tone;
+    });
+  });
+
+  document.getElementById('reviewInput').addEventListener('input', detectSentiment);
+
+  function detectSentiment() {
+    const text = document.getElementById('reviewInput').value;
+    const tag = document.getElementById('sentimentTag');
+    if (!text.trim()) { tag.className = 'sentiment-tag'; return; }
+    const neg = ['ช้า','แตก','ผิด','เสีย','ไม่ดี','ผิดหวัง','แย่','ไม่ประทับใจ','ไม่พอใจ'];
+    const pos = ['ดีมาก','ประทับใจ','น่ารัก','สวย','อร่อย','จะกลับมา','ชอบ','เยี่ยม','ดีเลย'];
+    const hasNeg = neg.some(w => text.includes(w));
+    const hasPos = pos.some(w => text.includes(w));
+    if (hasNeg && !hasPos) { tag.className = 'sentiment-tag negative'; tag.textContent = '😤 รีวิวเชิงลบ'; }
+    else if (hasPos && !hasNeg) { tag.className = 'sentiment-tag positive'; tag.textContent = '😊 รีวิวเชิงบวก'; }
+    else { tag.className = 'sentiment-tag neutral'; tag.textContent = '😐 รีวิวกลาง ๆ'; }
+  }
+
+  function setExample(el) {
+    document.getElementById('reviewInput').value = el.textContent;
+    detectSentiment();
+  }
+
+  async function generate() {
+    const review = document.getElementById('reviewInput').value.trim();
+    if (!review) {
+      const ta = document.getElementById('reviewInput');
+      ta.style.borderColor = '#f87171';
+      ta.focus();
+      setTimeout(() => ta.style.borderColor = '', 1500);
+      return;
+    }
+
+    const shop = document.getElementById('shopName').value.trim() || 'ร้านค้าออนไลน์';
+    const type = document.getElementById('shopType').value.trim() || 'ร้านค้า';
+
+    const btn = document.getElementById('generateBtn');
+    const spinner = document.getElementById('spinner');
+    const btnText = document.getElementById('btnText');
+    btn.disabled = true;
+    spinner.style.display = 'block';
+    btnText.textContent = 'กำลังสร้าง...';
+
+    const outputCard = document.getElementById('outputCard');
+    const outputArea = document.getElementById('outputArea');
+    outputCard.style.display = 'block';
+    outputArea.innerHTML = '<div class="output-text"><span class="streaming-cursor"></span></div>';
+
+    const prompt = `คุณคือพนักงานตอบรีวิวของ "${shop}" (${type}) ที่มีสไตล์การสื่อสาร: ${selectedTone}
+
+รีวิวจากลูกค้า:
+"${review}"
+
+จงตอบรีวิวนี้โดย:
+- ขอบคุณลูกค้าเสมอ (ถ้าเป็นรีวิวดี)
+- ขอโทษและรับผิดชอบ (ถ้าเป็นรีวิวแย่)
+- บอกวิธีแก้ไขหรือปรับปรุง (ถ้ามีปัญหา)
+- ใช้ภาษาไทยที่เป็นธรรมชาติ
+- ความยาว 2-4 ประโยค
+- เพิ่ม emoji 1-2 ตัว
+
+ตอบเฉพาะคำตอบที่จะส่งให้ลูกค้าเท่านั้น`;
+
+    try {
+      // เรียก /api/chat แทน Anthropic โดยตรง
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt })
+      });
+
+      if (!res.ok) {
+        throw new Error(`Server error: ${res.status}`);
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let fullText = '';
+      const outputDiv = document.createElement('div');
+      outputDiv.className = 'output-text';
+      outputArea.innerHTML = '';
+      outputArea.appendChild(outputDiv);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') continue;
+            try {
+              const json = JSON.parse(data);
+              if (json.type === 'content_block_delta' && json.delta?.text) {
+                fullText += json.delta.text;
+                outputDiv.innerHTML = fullText + '<span class="streaming-cursor"></span>';
+              }
+            } catch {}
+          }
+        }
+      }
+
+      outputDiv.innerHTML = fullText;
+      lastOutput = fullText;
+
+      generateCount++;
+      localStorage.setItem('reviewCount', generateCount);
+      document.getElementById('countGenerated').textContent = generateCount;
+
+    } catch (err) {
+      outputArea.innerHTML = `<div class="error-box">❌ ${err.message}<br><small style="opacity:0.7">ตรวจสอบว่าตั้งค่า ANTHROPIC_API_KEY ใน Vercel แล้วหรือยัง</small></div>`;
+    }
+
+    btn.disabled = false;
+    spinner.style.display = 'none';
+    btnText.textContent = '✨ สร้างคำตอบ';
+    outputCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function copyText() {
+    if (!lastOutput) return;
+    navigator.clipboard.writeText(lastOutput).then(() => {
+      const btn = document.querySelector('.btn-copy');
+      btn.textContent = '✅ คัดลอกแล้ว!';
+      setTimeout(() => btn.innerHTML = '📋 คัดลอก', 2000);
+    });
+  }
+</script>
+</body>
+</html>
